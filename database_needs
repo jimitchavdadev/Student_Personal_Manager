@@ -1,0 +1,19 @@
+database:
+
+// done but the toggling effect is remaining, will be checked at the end along with modularisatin of the whole code
+to do list: (use mongo)
+status, task name, task type, due date, description, substeps
+
+notes: (use mongo)
+notebook name->sections->pages
+
+assignments and exams:
+assignments:
+status, assignment name, due date, submit to, where to submit, what to submit, how to submit
+
+exams:
+subject name, exam date, what to study, resources
+
+projects:
+project name, team members emails, project description
+inside projects: chats, tasks, meetings, upcoming meetings
