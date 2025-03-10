@@ -1,87 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import NotebookList from '../components/NotesComponents/NotebookList';
 import NoteEditor from '../components/NotesComponents/NoteEditor';
 import CreateModal from '../components/NotesComponents/CreateModal';
-
-interface Notebook {
-  id: string;
-  name: string;
-  sections: Section[];
-  expanded: boolean;
-}
-
-interface Section {
-  id: string;
-  name: string;
-  pages: Page[];
-  expanded: boolean;
-}
-
-interface Page {
-  id: string;
-  title: string;
-  content: string;
-}
+import { api, Notebook, Section, Page } from '../api/notesApi';
 
 const NotesPage: React.FC = () => {
-  const [notebooks, setNotebooks] = useState<Notebook[]>([
-    {
-      id: '1',
-      name: 'Mathematics',
-      expanded: false,
-      sections: [
-        {
-          id: '1-1',
-          name: 'Calculus',
-          expanded: false,
-          pages: [
-            {
-              id: '1-1-1',
-              title: 'Derivatives',
-              content: 'Notes about derivatives and their applications...'
-            },
-            {
-              id: '1-1-2',
-              title: 'Integrals',
-              content: 'Notes about integration techniques...'
-            }
-          ]
-        },
-        {
-          id: '1-2',
-          name: 'Linear Algebra',
-          expanded: false,
-          pages: [
-            {
-              id: '1-2-1',
-              title: 'Matrices',
-              content: 'Notes about matrix operations...'
-            }
-          ]
-        }
-      ]
-    },
-    {
-      id: '2',
-      name: 'Physics',
-      expanded: false,
-      sections: [
-        {
-          id: '2-1',
-          name: 'Mechanics',
-          expanded: false,
-          pages: [
-            {
-              id: '2-1-1',
-              title: 'Newton\'s Laws',
-              content: 'First Law: An object at rest stays at rest, and an object in motion stays in motion with the same speed and in the same direction unless acted upon by an unbalanced force.\n\nSecond Law: The acceleration of an object depends on the mass of the object and the amount of force applied.\n\nThird Law: For every action, there is an equal and opposite reaction.'
-            }
-          ]
-        }
-      ]
-    }
-  ]);
+  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   const [showCreateNotebookModal, setShowCreateNotebookModal] = useState(false);
   const [showCreateSectionModal, setShowCreateSectionModal] = useState(false);
@@ -95,26 +22,73 @@ const NotesPage: React.FC = () => {
   const [activeNoteContent, setActiveNoteContent] = useState('');
   const [activeNoteTitle, setActiveNoteTitle] = useState('');
 
-  const toggleNotebookExpand = (notebookId: string) => {
+  // Fetch notebooks when component mounts
+  useEffect(() => {
+    fetchNotebooks();
+  }, []);
+
+  const fetchNotebooks = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const fetchedNotebooks = await api.getNotebooks();
+      setNotebooks(fetchedNotebooks);
+    } catch (err) {
+      setError('Failed to load notebooks');
+      console.error(err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const loadNotebookContents = async (notebookId: string) => {
+    try {
+      setIsLoading(true);
+      const fullNotebook = await api.getNotebookWithContents(notebookId);
+      
+      // Update the notebooks array with the fully loaded notebook
+      setNotebooks(prev => 
+        prev.map(nb => 
+          nb._id === notebookId ? fullNotebook : nb
+        )
+      );
+    } catch (err) {
+      console.error(`Error loading notebook ${notebookId} contents:`, err);
+      setError('Failed to load notebook contents');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleNotebookExpand = async (notebookId: string) => {
+    // Find the notebook to toggle
+    const notebook = notebooks.find(nb => nb._id === notebookId);
+    
+    // If it doesn't have sections loaded yet, load them now
+    if (notebook && (!notebook.sections || notebook.sections.length === 0)) {
+      await loadNotebookContents(notebookId);
+    }
+    
+    // Toggle the expanded state
     setNotebooks(notebooks.map(notebook => 
-      notebook.id === notebookId 
+      notebook._id === notebookId 
         ? { ...notebook, expanded: !notebook.expanded } 
         : notebook
     ));
   };
 
   const toggleSectionExpand = (notebookId: string, sectionId: string) => {
-    setNotebooks(notebooks.map(notebook => 
-      notebook.id === notebookId 
-        ? { 
-            ...notebook, 
-            sections: notebook.sections.map(section => 
-              section.id === sectionId 
-                ? { ...section, expanded: !section.expanded } 
-                : section
-            ) 
-          } 
-        : notebook
+    setNotebooks(notebooks.map((notebook: Notebook) => 
+      notebook._id === notebookId 
+      ? { 
+        ...notebook, 
+        sections: notebook.sections?.map((section: Section) => 
+          section._id === sectionId 
+          ? { ...section, expanded: !section.expanded } 
+          : section
+        ) 
+        } 
+      : notebook
     ));
   };
 
@@ -123,11 +97,11 @@ const NotesPage: React.FC = () => {
     setSelectedSectionId(sectionId);
     setSelectedPageId(pageId);
     
-    const notebook = notebooks.find(n => n.id === notebookId);
+    const notebook = notebooks.find(n => n._id === notebookId);
     if (notebook) {
-      const section = notebook.sections.find(s => s.id === sectionId);
+      const section: Section | undefined = notebook.sections?.find((s: Section) => s._id === sectionId);
       if (section) {
-        const page = section.pages.find(p => p.id === pageId);
+        const page: Page | undefined = section.pages?.find((p: Page) => p._id === pageId);
         if (page) {
           setActiveNoteContent(page.content);
           setActiveNoteTitle(page.title);
@@ -136,89 +110,100 @@ const NotesPage: React.FC = () => {
     }
   };
 
-  const createNotebook = () => {
+  const createNotebook = async () => {
     if (!newNotebookName) return;
     
-    const newNotebook: Notebook = {
-      id: Date.now().toString(),
-      name: newNotebookName,
-      expanded: false,
-      sections: []
-    };
-    
-    setNotebooks([...notebooks, newNotebook]);
-    setShowCreateNotebookModal(false);
-    setNewNotebookName('');
+    try {
+      const newNotebook = await api.createNotebook(newNotebookName);
+      setNotebooks([...notebooks, newNotebook]);
+      setShowCreateNotebookModal(false);
+      setNewNotebookName('');
+    } catch (err) {
+      setError('Failed to create notebook');
+      console.error(err);
+    }
   };
 
-  const createSection = () => {
+  const createSection = async () => {
     if (!newSectionName || !selectedNotebookId) return;
     
-    const newSection: Section = {
-      id: Date.now().toString(),
-      name: newSectionName,
-      expanded: false,
-      pages: []
-    };
-    
-    setNotebooks(notebooks.map(notebook => 
-      notebook.id === selectedNotebookId 
-        ? { ...notebook, sections: [...notebook.sections, newSection] } 
-        : notebook
-    ));
-    
-    setShowCreateSectionModal(false);
-    setNewSectionName('');
+    try {
+      const newSection = await api.createSection(selectedNotebookId, newSectionName);
+      
+      setNotebooks(notebooks.map(notebook => 
+        notebook._id === selectedNotebookId 
+          ? { 
+              ...notebook, 
+              sections: [...(notebook.sections || []), newSection] 
+            } 
+          : notebook
+      ));
+      
+      setShowCreateSectionModal(false);
+      setNewSectionName('');
+    } catch (err) {
+      setError('Failed to create section');
+      console.error(err);
+    }
   };
 
-  const createPage = () => {
+  const createPage = async () => {
     if (!newPageTitle || !selectedNotebookId || !selectedSectionId) return;
     
-    const newPage: Page = {
-      id: Date.now().toString(),
-      title: newPageTitle,
-      content: ''
-    };
-    
-    setNotebooks(notebooks.map(notebook => 
-      notebook.id === selectedNotebookId 
-        ? { 
-            ...notebook, 
-            sections: notebook.sections.map(section => 
-              section.id === selectedSectionId 
-                ? { ...section, pages: [...section.pages, newPage] } 
-                : section
-            ) 
-          } 
-        : notebook
-    ));
-    
-    setShowCreatePageModal(false);
-    setNewPageTitle('');
+    try {
+      const newPage = await api.createPage(selectedSectionId, newPageTitle);
+      
+      setNotebooks(notebooks.map((notebook: Notebook) => 
+        notebook._id === selectedNotebookId 
+          ? { 
+          ...notebook, 
+          sections: notebook.sections?.map((section: Section) => 
+            section._id === selectedSectionId 
+          ? { ...section, pages: [...(section.pages || []), newPage] } 
+          : section
+          ) 
+        } 
+          : notebook
+      ));
+      
+      setShowCreatePageModal(false);
+      setNewPageTitle('');
+    } catch (err) {
+      setError('Failed to create page');
+      console.error(err);
+    }
   };
 
-  const updateNoteContent = () => {
+  const updateNoteContent = async () => {
     if (!selectedNotebookId || !selectedSectionId || !selectedPageId) return;
     
-    setNotebooks(notebooks.map(notebook => 
-      notebook.id === selectedNotebookId 
-        ? { 
-            ...notebook, 
-            sections: notebook.sections.map(section => 
-              section.id === selectedSectionId 
-                ? { 
-                    ...section, 
-                    pages: section.pages.map(page => 
-                      page.id === selectedPageId 
-                        ? { ...page, content: activeNoteContent, title: activeNoteTitle } 
-                        : page
-                    ) 
-                  } 
-                : section
-            ) 
-          } 
-        : notebook
-    ));
+    try {
+      await api.updatePage(selectedPageId, activeNoteTitle, activeNoteContent);
+      
+      // Update local state
+      setNotebooks(notebooks.map((notebook: Notebook) => 
+        notebook._id === selectedNotebookId 
+          ? { 
+          ...notebook, 
+          sections: notebook.sections?.map((section: Section) => 
+            section._id === selectedSectionId 
+          ? { 
+              ...section, 
+              pages: section.pages?.map((page: Page) => 
+            page._id === selectedPageId 
+              ? { ...page, content: activeNoteContent, title: activeNoteTitle } 
+              : page
+              ) 
+            } 
+          : section
+          ) 
+        } 
+          : notebook
+      ));
+    } catch (err) {
+      setError('Failed to update page');
+      console.error(err);
+    }
   };
 
   const openCreateSectionModal = (notebookId: string) => {
@@ -245,26 +230,36 @@ const NotesPage: React.FC = () => {
         </button>
       </div>
       
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <NotebookList
-          notebooks={notebooks}
-          selectedPageId={selectedPageId}
-          toggleNotebookExpand={toggleNotebookExpand}
-          toggleSectionExpand={toggleSectionExpand}
-          selectPage={selectPage}
-          openCreateSectionModal={openCreateSectionModal}
-          openCreatePageModal={openCreatePageModal}
-        />
-        
-        <NoteEditor
-          selectedPageId={selectedPageId}
-          activeNoteTitle={activeNoteTitle}
-          activeNoteContent={activeNoteContent}
-          setActiveNoteTitle={setActiveNoteTitle}
-          setActiveNoteContent={setActiveNoteContent}
-          updateNoteContent={updateNoteContent}
-        />
-      </div>
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+          {error}
+        </div>
+      )}
+      
+      {isLoading && !notebooks.length ? (
+        <div className="text-center py-10">Loading...</div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <NotebookList
+            notebooks={notebooks}
+            selectedPageId={selectedPageId}
+            toggleNotebookExpand={toggleNotebookExpand}
+            toggleSectionExpand={toggleSectionExpand}
+            selectPage={selectPage}
+            openCreateSectionModal={openCreateSectionModal}
+            openCreatePageModal={openCreatePageModal}
+          />
+          
+          <NoteEditor
+            selectedPageId={selectedPageId}
+            activeNoteTitle={activeNoteTitle}
+            activeNoteContent={activeNoteContent}
+            setActiveNoteTitle={setActiveNoteTitle}
+            setActiveNoteContent={setActiveNoteContent}
+            updateNoteContent={updateNoteContent}
+          />
+        </div>
+      )}
 
       <CreateModal
         isOpen={showCreateNotebookModal}

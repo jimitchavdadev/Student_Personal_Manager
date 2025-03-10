@@ -1,39 +1,122 @@
-import React, { useState } from 'react';
-import { Assignment, Exam } from '/home/totoro/Roger/Projects/Student_Personal_Manager/testing/frontend/src/types/assignmentTypes.ts'; // Adjust the import path as necessary
-import AssignmentCard from '/home/totoro/Roger/Projects/Student_Personal_Manager/testing/frontend/src/components/AssignmentComponents/AssignmentCard.tsx'; // Adjust the import path as necessary
-import AddAssignmentModal from '/home/totoro/Roger/Projects/Student_Personal_Manager/testing/frontend/src/components/AssignmentComponents/AddAssignmentModal.tsx'; // Adjust the import path as necessary
-import AddExamModal from '/home/totoro/Roger/Projects/Student_Personal_Manager/testing/frontend/src/components/AssignmentComponents/AddExamModal.tsx'; // Adjust the import path as necessary
+import React, { useState, useEffect } from 'react';
+import { Assignment, Exam } from '../types/assignmentTypes';
+import AssignmentCard from '../components/AssignmentComponents/AssignmentCard';
+import AddAssignmentModal from '../components/AssignmentComponents/AddAssignmentModal';
+import AddExamModal from '../components/AssignmentComponents/AddExamModal';
+import { AssignmentService } from '../api/assignmentApi';
+import EditAssignmentModal from '../components/AssignmentComponents/EditAssignmentModal'; // You'll need to create this
 
 const AssignmentsPage: React.FC = () => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [exams, setExams] = useState<Exam[]>([]);
   const [showAddAssignmentModal, setShowAddAssignmentModal] = useState(false);
   const [showAddExamModal, setShowAddExamModal] = useState(false);
+  const [showEditAssignmentModal, setShowEditAssignmentModal] = useState(false);
+  const [currentAssignment, setCurrentAssignment] = useState<Assignment | null>(null);
   const [expandedAssignmentId, setExpandedAssignmentId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'assignments' | 'exams'>('assignments');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Fetch assignments when component mounts
+  useEffect(() => {
+    fetchAssignments();
+  }, []);
+
+  const fetchAssignments = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const data = await AssignmentService.getAllAssignments();
+      setAssignments(data);
+    } catch (err) {
+      setError('Failed to load assignments. Please try again.');
+      console.error('Error fetching assignments:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const toggleAssignmentDetails = (id: string): void => {
     setExpandedAssignmentId(prevId => (prevId === id ? null : id));
   };
 
-  const createAssignment = (newAssignment: Omit<Assignment, 'id' | 'completed' | 'attachments'>) => {
-    const assignmentWithId: Assignment = {
-      ...newAssignment,
-      id: Date.now().toString(),
-      completed: false,
-      attachments: []
-    };
-    setAssignments(prevAssignments => [...prevAssignments, assignmentWithId]);
+  const createAssignment = async (newAssignment: Omit<Assignment, 'id' | 'completed' | 'attachments'>) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const createdAssignment = await AssignmentService.createAssignment(newAssignment);
+      setAssignments(prevAssignments => [...prevAssignments, createdAssignment]);
+      setShowAddAssignmentModal(false);
+    } catch (err) {
+      setError('Failed to create assignment. Please try again.');
+      console.error('Error creating assignment:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const createExam = (newExam: Omit<Exam, 'id'>) => {
-    const examWithId: Exam = {
-      ...newExam,
-      id: Date.now().toString(),
-    };
-    setExams(prevExams => [...prevExams, examWithId]);
+  const updateAssignment = async (updatedAssignment: Assignment) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const result = await AssignmentService.updateAssignment(updatedAssignment.id, updatedAssignment);
+      
+      setAssignments(prevAssignments => 
+        prevAssignments.map(assignment => 
+          assignment.id === updatedAssignment.id ? result : assignment
+        )
+      );
+      
+      setShowEditAssignmentModal(false);
+      setCurrentAssignment(null);
+    } catch (err) {
+      setError('Failed to update assignment. Please try again.');
+      console.error('Error updating assignment:', err);
+    } finally {
+      setIsLoading(false);
+    }
   };
+
+  const deleteAssignment = async (id: string) => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      await AssignmentService.deleteAssignment(id);
+      setAssignments(prevAssignments => 
+        prevAssignments.filter(assignment => assignment.id !== id)
+      );
+    } catch (err) {
+      setError('Failed to delete assignment. Please try again.');
+      console.error('Error deleting assignment:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const toggleAssignmentCompletion = async (id: string, completed: boolean) => {
+    try {
+      setError(null);
+      await AssignmentService.toggleAssignmentCompletion(id, completed);
+      
+      setAssignments(prevAssignments => 
+        prevAssignments.map(assignment => 
+          assignment.id === id ? { ...assignment, completed } : assignment
+        )
+      );
+    } catch (err) {
+      setError('Failed to update assignment status. Please try again.');
+      console.error('Error updating assignment status:', err);
+    }
+  };
+
+  const handleEditClick = (assignment: Assignment) => {
+    setCurrentAssignment(assignment);
+    setShowEditAssignmentModal(true);
+  };
+
+  // For exams - implementation would be similar with ExamService
 
   const sortedAssignments = [...assignments].sort((a, b) => {
     const dateA = new Date(a.dueDate).getTime();
@@ -55,17 +138,31 @@ const AssignmentsPage: React.FC = () => {
           <button
             onClick={() => setShowAddAssignmentModal(true)}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+            disabled={isLoading}
           >
             Add Assignment
           </button>
           <button
             onClick={() => setShowAddExamModal(true)}
             className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+            disabled={isLoading}
           >
             Add Exam
           </button>
+          <button
+            onClick={() => setSortOrder(prevOrder => prevOrder === 'asc' ? 'desc' : 'asc')}
+            className="px-4 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+          >
+            Sort {sortOrder === 'asc' ? '↑' : '↓'}
+          </button>
         </div>
       </div>
+
+      {error && (
+        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4" role="alert">
+          <span className="block sm:inline">{error}</span>
+        </div>
+      )}
 
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
         <div className="border-b border-gray-200 dark:border-gray-700">
@@ -94,7 +191,11 @@ const AssignmentsPage: React.FC = () => {
         </div>
 
         <div className="p-4">
-          {activeTab === 'assignments' ? (
+          {isLoading ? (
+            <div className="flex justify-center py-8">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+            </div>
+          ) : activeTab === 'assignments' ? (
             <div className="space-y-4">
               {sortedAssignments.length === 0 ? (
                 <div className="text-center py-8 text-gray-500 dark:text-gray-400">
@@ -107,6 +208,9 @@ const AssignmentsPage: React.FC = () => {
                     assignment={assignment}
                     isExpanded={expandedAssignmentId === assignment.id}
                     onToggleDetails={() => toggleAssignmentDetails(assignment.id)}
+                    onDelete={() => deleteAssignment(assignment.id)}
+                    onEdit={() => handleEditClick(assignment)}
+                    onToggleCompletion={(completed) => toggleAssignmentCompletion(assignment.id, completed)}
                   />
                 ))
               )}
@@ -138,10 +242,29 @@ const AssignmentsPage: React.FC = () => {
         onSubmit={createAssignment}
       />
 
+      {currentAssignment && (
+        <EditAssignmentModal
+          isOpen={showEditAssignmentModal}
+          onClose={() => {
+            setShowEditAssignmentModal(false);
+            setCurrentAssignment(null);
+          }}
+          onSubmit={updateAssignment}
+          assignment={currentAssignment}
+        />
+      )}
+
       <AddExamModal
         isOpen={showAddExamModal}
         onClose={() => setShowAddExamModal(false)}
-        onSubmit={createExam}
+        onSubmit={(examData) => {
+          // Would use ExamService.createExam once implemented
+          const examWithId: Exam = {
+            ...examData,
+            id: Date.now().toString(),
+          };
+          setExams(prevExams => [...prevExams, examWithId]);
+        }}
       />
     </div>
   );

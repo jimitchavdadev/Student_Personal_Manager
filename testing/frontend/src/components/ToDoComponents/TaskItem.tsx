@@ -2,16 +2,17 @@ import React from 'react';
 import { MoreVertical, CheckCircle2, Circle, Calendar, Clock } from 'lucide-react';
 import { TaskWithSubsteps, Substep } from '../../types/todoTypes';
 
-interface TaskItemProps {
+type TaskItemProps = {
   task: TaskWithSubsteps;
-  toggleTaskCompletion: (taskId: string) => void;
-  toggleSubstepCompletion: (taskId: string, substepId: string) => void;
+  toggleTaskCompletion: (taskId: string) => Promise<void>;
+  toggleSubstepCompletion: (taskId: string, substepId: string) => Promise<void>;
   toggleTaskDetails: (taskId: string) => void;
   toggleTaskOptions: (taskId: string, e: React.MouseEvent) => void;
   activeTaskOptions: string | null;
   expandedTaskId: string | null;
   calculateDaysRemaining: (dueDate: string) => number;
-}
+  deleteTask: (taskId: string) => Promise<void>;
+};
 
 const TaskItem: React.FC<TaskItemProps> = ({
   task,

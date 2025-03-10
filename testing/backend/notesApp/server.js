@@ -17,23 +17,23 @@ mongoose.connect("mongodb://localhost:27017/StudyPro", {  // Change this if usin
 // Define Schemas
 const notebookSchema = new mongoose.Schema({
     name: String,
-    createdAt: Date,
-    updatedAt: Date
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
 });
 
 const sectionSchema = new mongoose.Schema({
-    notebookId: mongoose.Schema.Types.ObjectId,
+    notebookId: { type: mongoose.Schema.Types.ObjectId, ref: 'Notebook' },
     title: String,
-    createdAt: Date,
-    updatedAt: Date
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
 });
 
 const pageSchema = new mongoose.Schema({
-    sectionId: mongoose.Schema.Types.ObjectId,
+    sectionId: { type: mongoose.Schema.Types.ObjectId, ref: 'Section' },
     title: String,
     content: String,
-    createdAt: Date,
-    updatedAt: Date
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
 });
 
 // Define Models
@@ -41,6 +41,7 @@ const Notebook = mongoose.model("Notebook", notebookSchema);
 const Section = mongoose.model("Section", sectionSchema);
 const Page = mongoose.model("Page", pageSchema);
 
+// Get all notebooks (without sections and pages for better performance)
 app.get("/notebooks", async (req, res) => {
     try {
         const notebooks = await Notebook.find();
@@ -50,7 +51,6 @@ app.get("/notebooks", async (req, res) => {
         res.status(500).json({ error: "Internal Server Error" });
     }
 });
-
 
 // API to fetch a notebook along with sections & pages
 app.get("/notebooks/:id", async (req, res) => {
@@ -68,12 +68,18 @@ app.get("/notebooks/:id", async (req, res) => {
         const sectionsWithPages = await Promise.all(
             sections.map(async (section) => {
                 const pages = await Page.find({ sectionId: section._id });
-                return { ...section.toObject(), pages };
+                return { 
+                    ...section.toObject(), 
+                    pages 
+                };
             })
         );
 
         // Return notebook with sections and pages
-        res.json({ ...notebook.toObject(), sections: sectionsWithPages });
+        res.json({ 
+            ...notebook.toObject(), 
+            sections: sectionsWithPages 
+        });
 
     } catch (error) {
         console.error("Error fetching notebook:", error);
@@ -86,7 +92,12 @@ app.post("/notebooks", async (req, res) => {
         const { name } = req.body;
         if (!name) return res.status(400).json({ error: "Notebook name is required" });
 
-        const newNotebook = new Notebook({ name, createdAt: new Date(), updatedAt: new Date() });
+        const now = new Date();
+        const newNotebook = new Notebook({ 
+            name, 
+            createdAt: now, 
+            updatedAt: now 
+        });
         await newNotebook.save();
 
         res.status(201).json(newNotebook);
@@ -101,7 +112,17 @@ app.post("/sections", async (req, res) => {
         const { notebookId, title } = req.body;
         if (!notebookId || !title) return res.status(400).json({ error: "Notebook ID and section title are required" });
 
-        const newSection = new Section({ notebookId, title, createdAt: new Date(), updatedAt: new Date() });
+        // Verify notebook exists
+        const notebook = await Notebook.findById(notebookId);
+        if (!notebook) return res.status(404).json({ error: "Notebook not found" });
+
+        const now = new Date();
+        const newSection = new Section({ 
+            notebookId, 
+            title, 
+            createdAt: now, 
+            updatedAt: now 
+        });
         await newSection.save();
 
         res.status(201).json(newSection);
@@ -114,9 +135,20 @@ app.post("/sections", async (req, res) => {
 app.post("/pages", async (req, res) => {
     try {
         const { sectionId, title, content } = req.body;
-        if (!sectionId || !title || !content) return res.status(400).json({ error: "Section ID, title, and content are required" });
+        if (!sectionId || !title) return res.status(400).json({ error: "Section ID and title are required" });
 
-        const newPage = new Page({ sectionId, title, content, createdAt: new Date(), updatedAt: new Date() });
+        // Verify section exists
+        const section = await Section.findById(sectionId);
+        if (!section) return res.status(404).json({ error: "Section not found" });
+
+        const now = new Date();
+        const newPage = new Page({ 
+            sectionId, 
+            title, 
+            content: content || "", 
+            createdAt: now, 
+            updatedAt: now 
+        });
         await newPage.save();
 
         res.status(201).json(newPage);
@@ -133,7 +165,11 @@ app.put("/notebooks/:id", async (req, res) => {
 
         if (!name) return res.status(400).json({ error: "Notebook name is required" });
 
-        const updatedNotebook = await Notebook.findByIdAndUpdate(id, { name, updatedAt: new Date() }, { new: true });
+        const updatedNotebook = await Notebook.findByIdAndUpdate(
+            id, 
+            { name, updatedAt: new Date() }, 
+            { new: true }
+        );
 
         if (!updatedNotebook) return res.status(404).json({ error: "Notebook not found" });
 
@@ -151,7 +187,11 @@ app.put("/sections/:id", async (req, res) => {
 
         if (!title) return res.status(400).json({ error: "Section title is required" });
 
-        const updatedSection = await Section.findByIdAndUpdate(id, { title, updatedAt: new Date() }, { new: true });
+        const updatedSection = await Section.findByIdAndUpdate(
+            id, 
+            { title, updatedAt: new Date() }, 
+            { new: true }
+        );
 
         if (!updatedSection) return res.status(404).json({ error: "Section not found" });
 
@@ -167,9 +207,18 @@ app.put("/pages/:id", async (req, res) => {
         const { id } = req.params;
         const { title, content } = req.body;
 
-        if (!title && !content) return res.status(400).json({ error: "Title or content is required" });
+        if (!title && content === undefined) return res.status(400).json({ error: "Title or content is required" });
 
-        const updatedPage = await Page.findByIdAndUpdate(id, { title, content, updatedAt: new Date() }, { new: true });
+        const updateData = {};
+        if (title) updateData.title = title;
+        if (content !== undefined) updateData.content = content;
+        updateData.updatedAt = new Date();
+
+        const updatedPage = await Page.findByIdAndUpdate(
+            id, 
+            updateData, 
+            { new: true }
+        );
 
         if (!updatedPage) return res.status(404).json({ error: "Page not found" });
 
@@ -184,9 +233,15 @@ app.delete("/notebooks/:id", async (req, res) => {
     try {
         const { id } = req.params;
 
-        // Delete all sections and pages related to this notebook
+        // Find all sections in this notebook
+        const sections = await Section.find({ notebookId: id });
+        const sectionIds = sections.map(section => section._id);
+
+        // Delete all pages in these sections
+        await Page.deleteMany({ sectionId: { $in: sectionIds } });
+
+        // Delete all sections in this notebook
         await Section.deleteMany({ notebookId: id });
-        await Page.deleteMany({ sectionId: { $in: await Section.find({ notebookId: id }).distinct("_id") } });
 
         // Delete the notebook
         const deletedNotebook = await Notebook.findByIdAndDelete(id);
@@ -234,8 +289,6 @@ app.delete("/pages/:id", async (req, res) => {
     }
 });
 
-
 // Start Server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-

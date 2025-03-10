@@ -1,21 +1,14 @@
 export interface Assignment {
   id: string;
-  name: string;
+  title: string;
+  description: string;
+  course: string;
   dueDate: string;
   completed: boolean;
-  whom: string;
-  where: string;
-  what: string;
-  how: string;
-  details: string;
-  attachments: Array<{
-    id: string;
-    name: string;
-    type: string;
-    url: string;
-  }>;
+  location: string;
+  submissionMethod: string;
+  attachments: any[];
 }
-
 // other exports
 export interface Exam {
   id: string;

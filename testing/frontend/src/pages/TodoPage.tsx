@@ -1,11 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import TaskItem from '/home/totoro/Roger/Projects/Student_Personal_Manager/testing/frontend/src/components/ToDoComponents/TaskItem.tsx';
 import AddTaskModal from '/home/totoro/Roger/Projects/Student_Personal_Manager/testing/frontend/src/components/ToDoComponents/AddTaskModal.tsx';
-import { Substep, Task, TaskWithSubsteps } from '/home/totoro/Roger/Projects/Student_Personal_Manager/testing/frontend/src/types/todoTypes.ts';
+import { Substep, Task, TaskWithSubsteps } from '../types/todoTypes';
+import todoApi from '../api/todoApi.ts';
 
 const TodoPage: React.FC = () => {
   const [tasks, setTasks] = useState<TaskWithSubsteps[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTask, setNewTask] = useState<Omit<Task, 'id' | 'created_at' | 'user_id'>>({
     name: '',
@@ -20,58 +23,110 @@ const TodoPage: React.FC = () => {
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [activeTaskOptions, setActiveTaskOptions] = useState<string | null>(null);
 
-  const generateId = () => Math.random().toString(36).substr(2, 9);
+  // Fetch tasks when component mounts
+  useEffect(() => {
+    fetchTasks();
+  }, []);
 
-  const addTask = () => {
+  const fetchTasks = async () => {
+    try {
+      setLoading(true);
+      const fetchedTasks = await todoApi.getTasks();
+      setTasks(fetchedTasks);
+      setError(null);
+    } catch (err) {
+      setError('Failed to fetch tasks');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addTask = async () => {
     if (!newTask.name || !newTask.due_date) return;
     
-    const taskId = generateId();
-    const newTaskWithSubsteps: TaskWithSubsteps = {
-      ...newTask,
-      id: taskId,
-      created_at: new Date().toISOString(),
-      user_id: 'user-id-placeholder',
-      substeps: tempSubsteps.map(substep => ({
-        ...substep,
-        id: generateId(),
-        task_id: taskId,
-        created_at: new Date().toISOString(),
+    try {
+      setLoading(true);
+      const createdTask = await todoApi.createTask(newTask, tempSubsteps);
+      setTasks(prevTasks => [...prevTasks, createdTask]);
+      
+      setShowAddModal(false);
+      setNewTask({
+        name: '',
+        type: 'Study',
+        due_date: '',
+        description: '',
         completed: false
-      }))
-    };
-
-    setTasks(prevTasks => [...prevTasks, newTaskWithSubsteps]);
-    
-    setShowAddModal(false);
-    setNewTask({
-      name: '',
-      type: 'Study',
-      due_date: '',
-      description: '',
-      completed: false
-    });
-    setTempSubsteps([]);
+      });
+      setTempSubsteps([]);
+    } catch (err) {
+      setError('Failed to create task');
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const toggleTaskCompletion = (taskId: string) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId ? { ...task, completed: !task.completed } : task
-    ));
+  const toggleTaskCompletion = async (taskId: string) => {
+    try {
+      const taskToUpdate = tasks.find(task => task.id === taskId);
+      if (!taskToUpdate) return;
+      
+      const newCompletionStatus = !taskToUpdate.completed;
+      
+      await todoApi.updateTask(taskId, { completed: newCompletionStatus });
+      
+      setTasks(tasks.map(task => 
+        task.id === taskId ? { ...task, completed: newCompletionStatus } : task
+      ));
+    } catch (err) {
+      setError('Failed to update task');
+      console.error(err);
+    }
   };
 
-  const toggleSubstepCompletion = (taskId: string, substepId: string) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId 
-        ? { 
-            ...task, 
-            substeps: task.substeps.map(substep => 
-              substep.id === substepId 
-                ? { ...substep, completed: !substep.completed } 
-                : substep
-            ) 
-          } 
-        : task
-    ));
+  const toggleSubstepCompletion = async (taskId: string, substepId: string) => {
+    try {
+      const taskToUpdate = tasks.find(task => task.id === taskId);
+      if (!taskToUpdate) return;
+      
+      const substepToUpdate = taskToUpdate.substeps.find(substep => substep.id === substepId);
+      if (!substepToUpdate) return;
+      
+      // Find the index of the substep in the backend (which might be different from our frontend)
+      const substepIndex = taskToUpdate.substeps.findIndex(substep => substep.id === substepId);
+      if (substepIndex === -1) return;
+      
+      const newCompletionStatus = !substepToUpdate.completed;
+      
+      await todoApi.updateSubstep(taskId, substepIndex, { completed: newCompletionStatus });
+      
+      setTasks(tasks.map(task => 
+        task.id === taskId 
+          ? { 
+              ...task, 
+              substeps: task.substeps.map(substep => 
+                substep.id === substepId 
+                  ? { ...substep, completed: newCompletionStatus } 
+                  : substep
+              ) 
+            } 
+          : task
+      ));
+    } catch (err) {
+      setError('Failed to update substep');
+      console.error(err);
+    }
+  };
+
+  const deleteTask = async (taskId: string) => {
+    try {
+      await todoApi.deleteTask(taskId);
+      setTasks(tasks.filter(task => task.id !== taskId));
+    } catch (err) {
+      setError('Failed to delete task');
+      console.error(err);
+    }
   };
 
   const addSubstep = () => {
@@ -135,6 +190,12 @@ const TodoPage: React.FC = () => {
         </button>
       </div>
 
+      {error && (
+        <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
+          {error}
+        </div>
+      )}
+
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700 flex justify-between items-center">
           <h2 className="font-semibold text-gray-900 dark:text-white">Tasks</h2>
@@ -148,7 +209,11 @@ const TodoPage: React.FC = () => {
         </div>
 
         <ul className="divide-y divide-gray-200 dark:divide-gray-700">
-          {sortedTasks.length === 0 ? (
+          {loading && tasks.length === 0 ? (
+            <li className="p-4 text-center text-gray-500 dark:text-gray-400">
+              Loading tasks...
+            </li>
+          ) : sortedTasks.length === 0 ? (
             <li className="p-4 text-center text-gray-500 dark:text-gray-400">
               No tasks yet. Click "Add Task" to create one!
             </li>
@@ -164,6 +229,7 @@ const TodoPage: React.FC = () => {
                 activeTaskOptions={activeTaskOptions}
                 expandedTaskId={expandedTaskId}
                 calculateDaysRemaining={calculateDaysRemaining}
+                deleteTask={deleteTask}
               />
             ))
           )}

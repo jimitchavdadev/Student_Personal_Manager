@@ -18,8 +18,8 @@ let db;
 async function connectDB() {
     try {
         await client.connect();
-        db = client.db("todoDB");
-        console.log("Connected to MongoDB");
+        db = client.db("StudyPro"); // ✅ Changed from "todoDB" to "StudyPro"
+        console.log("Connected to MongoDB - StudyPro");
     } catch (error) {
         console.error("MongoDB connection error:", error);
     }
@@ -178,3 +178,53 @@ app.delete("/api/tasks/:id", async (req, res) => {
     }
 });
 
+// ----------------------------
+// 8. Create a New Task
+// ----------------------------
+app.post("/api/tasks", async (req, res) => {
+    const { task_name, task_type, due_date, description, status } = req.body;
+
+    if (!task_name) {
+        return res.status(400).json({ error: "Task name is required" });
+    }
+
+    try {
+        const newTask = {
+            task_name,
+            task_type: task_type || "General",
+            due_date: due_date ? new Date(due_date) : null,
+            description: description || "",
+            status: status || "pending",
+            substeps: [],
+            created_at: new Date()
+        };
+
+        const result = await db.collection("tasks").insertOne(newTask);
+        
+        res.status(201).json({ 
+            _id: result.insertedId,
+            ...newTask
+        });
+    } catch (error) {
+        res.status(500).json({ error: "Error creating task" });
+    }
+});
+
+// ----------------------------
+// 9. Get a Single Task
+// ----------------------------
+app.get("/api/tasks/:id", async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const task = await db.collection("tasks").findOne({ _id: new ObjectId(id) });
+        
+        if (!task) {
+            return res.status(404).json({ error: "Task not found" });
+        }
+        
+        res.json(task);
+    } catch (error) {
+        res.status(500).json({ error: "Error fetching task" });
+    }
+});
