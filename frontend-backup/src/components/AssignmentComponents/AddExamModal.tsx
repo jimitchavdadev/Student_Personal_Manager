@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Exam } from '/home/totoro/Roger/Projects/Student_Personal_Manager/testing/frontend/src/types/assignmentTypes.ts';
+import { Exam } from '../../types/assignmentTypes';
 
 interface AddExamModalProps {
   isOpen: boolean;

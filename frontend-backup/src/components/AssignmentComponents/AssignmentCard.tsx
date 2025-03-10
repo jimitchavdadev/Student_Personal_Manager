@@ -1,6 +1,6 @@
 import React from 'react';
 import { ChevronUp, ChevronDown } from 'lucide-react';
-import { Assignment } from '/home/totoro/Roger/Projects/Student_Personal_Manager/testing/frontend/src/types/assignmentTypes.ts';
+import { Assignment } from '../../types/assignmentTypes';
 
 interface AssignmentCardProps {
   assignment: Assignment;

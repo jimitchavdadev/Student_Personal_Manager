@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Assignment, Exam } from '/home/totoro/Roger/Projects/Student_Personal_Manager/testing/frontend/src/types/assignmentTypes.ts'; // Adjust the import path as necessary
-import AssignmentCard from '/home/totoro/Roger/Projects/Student_Personal_Manager/testing/frontend/src/components/AssignmentComponents/AssignmentCard.tsx'; // Adjust the import path as necessary
-import AddAssignmentModal from '/home/totoro/Roger/Projects/Student_Personal_Manager/testing/frontend/src/components/AssignmentComponents/AddAssignmentModal.tsx'; // Adjust the import path as necessary
-import AddExamModal from '/home/totoro/Roger/Projects/Student_Personal_Manager/testing/frontend/src/components/AssignmentComponents/AddExamModal.tsx'; // Adjust the import path as necessary
+import { Assignment, Exam } from '../types/assignmentTypes'; // Adjust the import path as necessary
+import AssignmentCard from '../components/AssignmentComponents/AssignmentCard'; // Adjust the import path as necessary
+import AddAssignmentModal from '../components/AssignmentComponents/AddAssignmentModal'; // Adjust the import path as necessary
+import AddExamModal from '../components/AssignmentComponents/AddExamModal'; // Adjust the import path as necessary
 
 const AssignmentsPage: React.FC = () => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);

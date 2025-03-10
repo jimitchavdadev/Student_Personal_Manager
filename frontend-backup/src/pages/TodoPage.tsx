@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Plus, ChevronDown, ChevronUp } from 'lucide-react';
-import TaskItem from '/home/totoro/Roger/Projects/Student_Personal_Manager/testing/frontend/src/components/ToDoComponents/TaskItem.tsx';
-import AddTaskModal from '/home/totoro/Roger/Projects/Student_Personal_Manager/testing/frontend/src/components/ToDoComponents/AddTaskModal.tsx';
-import { Substep, Task, TaskWithSubsteps } from '/home/totoro/Roger/Projects/Student_Personal_Manager/testing/frontend/src/types/todoTypes.ts';
+import TaskItem from '../components/ToDoComponents/TaskItem';
+import AddTaskModal from '../components/ToDoComponents/AddTaskModal';
+import { Substep, Task, TaskWithSubsteps } from '../types/todoTypes';
 
 const TodoPage: React.FC = () => {
   const [tasks, setTasks] = useState<TaskWithSubsteps[]>([]);
