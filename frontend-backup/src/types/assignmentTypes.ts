@@ -1,26 +1,22 @@
 export interface Assignment {
-  id: string;
-  name: string;
-  dueDate: string;
-  completed: boolean;
-  whom: string;
-  where: string;
-  what: string;
-  how: string;
-  details: string;
-  attachments: Array<{
-    id: string;
-    name: string;
-    type: string;
-    url: string;
-  }>;
+  _id: string;
+  userId: string;
+  assignment_name: string;
+  due_date: string;
+  submit_to: string;
+  where_to_submit: string;
+  what_to_submit: string;
+  how_to_submit: string;
+  status: string;
+  // Optional fields
+  completed?: boolean;
+  attachments?: string[];
 }
 
-// other exports
 export interface Exam {
   id: string;
-  subject: string;
-  date: string;
-  toStudy: string;
-  resources: string;
+  subject_name: string;
+  exam_date: string;
+  what_to_study: string;
+  resources: string[];
 }

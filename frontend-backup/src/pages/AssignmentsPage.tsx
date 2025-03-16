@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Assignment, Exam } from '../types/assignmentTypes'; // Adjust the import path as necessary
 import AssignmentCard from '../components/AssignmentComponents/AssignmentCard'; // Adjust the import path as necessary
 import AddAssignmentModal from '../components/AssignmentComponents/AddAssignmentModal'; // Adjust the import path as necessary
 import AddExamModal from '../components/AssignmentComponents/AddExamModal'; // Adjust the import path as necessary
+import { useAuth } from '../contexts/AuthContext';
+import { assignmentService } from '../services/assignmentService';
+import { examService } from '../services/examService';
+import ExamCard from '../components/AssignmentComponents/ExamCard';
 
 const AssignmentsPage: React.FC = () => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
@@ -12,38 +16,106 @@ const AssignmentsPage: React.FC = () => {
   const [expandedAssignmentId, setExpandedAssignmentId] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'assignments' | 'exams'>('assignments');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
-
+  const { user } = useAuth();
   const toggleAssignmentDetails = (id: string): void => {
     setExpandedAssignmentId(prevId => (prevId === id ? null : id));
   };
 
-  const createAssignment = (newAssignment: Omit<Assignment, 'id' | 'completed' | 'attachments'>) => {
-    const assignmentWithId: Assignment = {
-      ...newAssignment,
-      id: Date.now().toString(),
-      completed: false,
-      attachments: []
-    };
-    setAssignments(prevAssignments => [...prevAssignments, assignmentWithId]);
+  useEffect(() => {
+    if (user) {
+      loadAssignments();
+      loadExams();
+    }
+  }, [user]);
+
+  const loadAssignments = async () => {
+    try {
+      const data = await assignmentService.getAssignments(user!.id);
+      setAssignments(data);
+    } catch (error) {
+      console.error('Failed to load assignments:', error);
+      // Add error handling/notification here
+    }
   };
 
-  const createExam = (newExam: Omit<Exam, 'id'>) => {
-    const examWithId: Exam = {
-      ...newExam,
-      id: Date.now().toString(),
-    };
-    setExams(prevExams => [...prevExams, examWithId]);
+  const createAssignment = async (newAssignment: Omit<Assignment, '_id' | 'completed' | 'attachments'>) => {
+    try {
+      const assignmentData = {
+        ...newAssignment,
+        userId: user!.id,
+        completed: false,
+        attachments: []
+      };
+      
+      const createdAssignment = await assignmentService.createAssignment(assignmentData);
+      setAssignments(prevAssignments => [...prevAssignments, createdAssignment]);
+      setShowAddAssignmentModal(false);
+    } catch (error) {
+      console.error('Failed to create assignment:', error);
+      // Add error handling/notification here
+    }
+  };
+
+  const handleUpdateAssignment = async (id: string, updates: Partial<Assignment>) => {
+    try {
+      const updatedAssignment = await assignmentService.updateAssignment(id, {
+        ...updates,
+        userId: user!.id
+      });
+      setAssignments(prevAssignments =>
+        prevAssignments.map(assignment =>
+          assignment._id === id ? updatedAssignment : assignment
+        )
+      );
+    } catch (error) {
+      console.error('Failed to update assignment:', error);
+    }
+  };
+
+  const handleDeleteAssignment = async (id: string) => {
+    try {
+      await assignmentService.deleteAssignment(id, user!.id);
+      setAssignments(prevAssignments =>
+        prevAssignments.filter(assignment => assignment._id !== id)
+      );
+    } catch (error) {
+      console.error('Failed to delete assignment:', error);
+      // Add error handling/notification here
+    }
+  };
+
+  const createExam = async (newExam: Omit<Exam, 'id'>) => {
+    try {
+      const examData = {
+        ...newExam,
+        userId: user!.id,
+      };
+      const createdExam = await examService.createExam(examData);
+      setExams(prevExams => [...prevExams, createdExam]);
+      setShowAddExamModal(false);
+    } catch (error) {
+      console.error('Failed to create exam:', error);
+    }
+  };
+
+  const loadExams = async () => {
+    try {
+      const data = await examService.getExams(user!.id);
+      setExams(data);
+    } catch (error) {
+      console.error('Failed to load exams:', error);
+    }
   };
 
   const sortedAssignments = [...assignments].sort((a, b) => {
-    const dateA = new Date(a.dueDate).getTime();
-    const dateB = new Date(b.dueDate).getTime();
+    const dateA = new Date(a.due_date).getTime();
+    const dateB = new Date(b.due_date).getTime();
     return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
   });
 
   const sortedExams = [...exams].sort((a, b) => {
-    const dateA = new Date(a.date).getTime();
-    const dateB = new Date(b.date).getTime();
+    const dateA = new Date(a.exam_date).getTime();
+    const dateB = new Date(b.exam_date).getTime();
     return sortOrder === 'asc' ? dateA - dateB : dateB - dateA;
   });
 
@@ -103,10 +175,12 @@ const AssignmentsPage: React.FC = () => {
               ) : (
                 sortedAssignments.map(assignment => (
                   <AssignmentCard
-                    key={assignment.id}
+                    key={assignment._id}
                     assignment={assignment}
-                    isExpanded={expandedAssignmentId === assignment.id}
-                    onToggleDetails={() => toggleAssignmentDetails(assignment.id)}
+                    isExpanded={expandedAssignmentId === assignment._id}
+                    onToggleDetails={() => toggleAssignmentDetails(assignment._id)}
+                    onUpdate={handleUpdateAssignment}
+                    onDelete={handleDeleteAssignment}
                   />
                 ))
               )}
@@ -118,13 +192,13 @@ const AssignmentsPage: React.FC = () => {
                   No exams yet. Click "Add Exam" to create one!
                 </div>
               ) : (
+                // Replace the existing exam rendering with ExamCard component
+                // In the render section, update the ExamCard usage:
                 sortedExams.map(exam => (
-                  <div key={exam.id} className="p-4 bg-gray-100 dark:bg-gray-700 rounded-md shadow">
-                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{exam.subject}</h3>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Date: {new Date(exam.date).toLocaleDateString()}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">What to Study: {exam.toStudy}</p>
-                    <p className="text-sm text-gray-600 dark:text-gray-300">Resources: {exam.resources}</p>
-                  </div>
+                  <ExamCard
+                    key={exam.id}
+                    exam={exam}
+                  />
                 ))
               )}
             </div>

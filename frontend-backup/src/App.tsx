@@ -1,17 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { 
-  Bell, 
-  User, 
-  Menu, 
-  CheckCircle2, 
-  ListTodo, 
-  BookOpen, 
-  Calendar, 
-  Search, 
-  Users, 
-  HelpCircle, 
-  Settings
-} from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import Header from './components/Header';
 import TodoPage from './pages/TodoPage';

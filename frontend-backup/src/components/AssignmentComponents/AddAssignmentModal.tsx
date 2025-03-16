@@ -10,13 +10,12 @@ interface AddAssignmentModalProps {
 
 const AddAssignmentModal: React.FC<AddAssignmentModalProps> = ({ isOpen, onClose, onSubmit }) => {
   const [newAssignment, setNewAssignment] = useState({
-    name: '',
-    dueDate: '',
-    whom: '',
-    where: '',
-    what: '',
-    how: '',
-    details: '',
+    assignment_name: '',
+    due_date: '',
+    submit_to: '',
+    where_to_submit: '',
+    what_to_submit: '',
+    how_to_submit: '',
   });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -31,13 +30,12 @@ const AddAssignmentModal: React.FC<AddAssignmentModalProps> = ({ isOpen, onClose
     onSubmit(newAssignment);
     onClose();
     setNewAssignment({
-      name: '',
-      dueDate: '',
-      whom: '',
-      where: '',
-      what: '',
-      how: '',
-      details: '',
+      assignment_name: '',
+      due_date: '',
+      submit_to: '',
+      where_to_submit: '',
+      what_to_submit: '',
+      how_to_submit: '',
     });
   };
 
@@ -48,109 +46,92 @@ const AddAssignmentModal: React.FC<AddAssignmentModalProps> = ({ isOpen, onClose
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl w-full max-w-md">
         <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-700">
           <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Add New Assignment</h3>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-          >
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300">
             <X size={20} />
           </button>
         </div>
 
         <div className="p-4 space-y-4">
           <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Name
+            <label htmlFor="assignment_name" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Assignment Name
             </label>
             <input
               type="text"
-              name="name"
-              id="name"
-              value={newAssignment.name}
+              name="assignment_name"
+              id="assignment_name"
+              value={newAssignment.assignment_name}
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>
 
           <div>
-            <label htmlFor="dueDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label htmlFor="due_date" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Due Date
             </label>
             <input
               type="date"
-              name="dueDate"
-              id="dueDate"
-              value={newAssignment.dueDate}
+              name="due_date"
+              id="due_date"
+              value={newAssignment.due_date}
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>
 
           <div>
-            <label htmlFor="whom" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            <label htmlFor="submit_to" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
               Submit To
             </label>
             <input
               type="text"
-              name="whom"
-              id="whom"
-              value={newAssignment.whom}
+              name="submit_to"
+              id="submit_to"
+              value={newAssignment.submit_to}
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>
 
           <div>
-            <label htmlFor="where" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Where
+            <label htmlFor="where_to_submit" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              Where to Submit
             </label>
             <input
               type="text"
-              name="where"
-              id="where"
-              value={newAssignment.where}
+              name="where_to_submit"
+              id="where_to_submit"
+              value={newAssignment.where_to_submit}
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>
 
           <div>
-            <label htmlFor="what" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              What
+            <label htmlFor="what_to_submit" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              What to Submit
             </label>
             <input
               type="text"
-              name="what"
-              id="what"
-              value={newAssignment.what}
+              name="what_to_submit"
+              id="what_to_submit"
+              value={newAssignment.what_to_submit}
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>
 
           <div>
-            <label htmlFor="how" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              How
+            <label htmlFor="how_to_submit" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
+              How to Submit
             </label>
             <input
               type="text"
-              name="how"
-              id="how"
-              value={newAssignment.how}
+              name="how_to_submit"
+              id="how_to_submit"
+              value={newAssignment.how_to_submit}
               onChange={handleChange}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
-            />
-          </div>
-
-          <div>
-            <label htmlFor="details" className="block text-sm font-medium text-gray-700 dark:text-gray-300">
-              Details
-            </label>
-            <textarea
-              name="details"
-              id="details"
-              value={newAssignment.details}
-              onChange={handleChange}
-              rows={3}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
           </div>

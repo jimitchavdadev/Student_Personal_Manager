@@ -1,88 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus } from 'lucide-react';
 import NotebookList from '../components/NotesComponents/NotebookList';
 import NoteEditor from '../components/NotesComponents/NoteEditor';
 import CreateModal from '../components/NotesComponents/CreateModal';
-
-interface Notebook {
-  id: string;
-  name: string;
-  sections: Section[];
-  expanded: boolean;
-}
-
-interface Section {
-  id: string;
-  name: string;
-  pages: Page[];
-  expanded: boolean;
-}
-
-interface Page {
-  id: string;
-  title: string;
-  content: string;
-}
+import { noteService } from '../services/noteService';
+import type { Notebook, Section, Page } from '../types/notesTypes';
 
 const NotesPage: React.FC = () => {
-  const [notebooks, setNotebooks] = useState<Notebook[]>([
-    {
-      id: '1',
-      name: 'Mathematics',
-      expanded: false,
-      sections: [
-        {
-          id: '1-1',
-          name: 'Calculus',
-          expanded: false,
-          pages: [
-            {
-              id: '1-1-1',
-              title: 'Derivatives',
-              content: 'Notes about derivatives and their applications...'
-            },
-            {
-              id: '1-1-2',
-              title: 'Integrals',
-              content: 'Notes about integration techniques...'
-            }
-          ]
-        },
-        {
-          id: '1-2',
-          name: 'Linear Algebra',
-          expanded: false,
-          pages: [
-            {
-              id: '1-2-1',
-              title: 'Matrices',
-              content: 'Notes about matrix operations...'
-            }
-          ]
-        }
-      ]
-    },
-    {
-      id: '2',
-      name: 'Physics',
-      expanded: false,
-      sections: [
-        {
-          id: '2-1',
-          name: 'Mechanics',
-          expanded: false,
-          pages: [
-            {
-              id: '2-1-1',
-              title: 'Newton\'s Laws',
-              content: 'First Law: An object at rest stays at rest, and an object in motion stays in motion with the same speed and in the same direction unless acted upon by an unbalanced force.\n\nSecond Law: The acceleration of an object depends on the mass of the object and the amount of force applied.\n\nThird Law: For every action, there is an equal and opposite reaction.'
-            }
-          ]
-        }
-      ]
-    }
-  ]);
-
+  const [notebooks, setNotebooks] = useState<Notebook[]>([]);
+  
   const [showCreateNotebookModal, setShowCreateNotebookModal] = useState(false);
   const [showCreateSectionModal, setShowCreateSectionModal] = useState(false);
   const [showCreatePageModal, setShowCreatePageModal] = useState(false);
@@ -136,89 +62,112 @@ const NotesPage: React.FC = () => {
     }
   };
 
-  const createNotebook = () => {
+  // Replace the static notebooks data with API call
+  useEffect(() => {
+    const fetchNotebooks = async () => {
+      try {
+        // Replace 'user123' with actual userId from auth context
+        const fetchedNotebooks = await noteService.getAllNotebooksWithContent('user123');
+        setNotebooks(fetchedNotebooks);
+      } catch (error) {
+        console.error('Error fetching notebooks:', error);
+        // Handle error (show notification, etc.)
+      }
+    };
+
+    fetchNotebooks();
+  }, []);
+
+  // Update createNotebook function
+  const createNotebook = async () => {
     if (!newNotebookName) return;
     
-    const newNotebook: Notebook = {
-      id: Date.now().toString(),
-      name: newNotebookName,
-      expanded: false,
-      sections: []
-    };
-    
-    setNotebooks([...notebooks, newNotebook]);
-    setShowCreateNotebookModal(false);
-    setNewNotebookName('');
+    try {
+      const newNotebook = await noteService.createNotebook('user123', newNotebookName);
+      setNotebooks([...notebooks, newNotebook]);
+      setShowCreateNotebookModal(false);
+      setNewNotebookName('');
+    } catch (error) {
+      console.error('Error creating notebook:', error);
+      // Handle error
+    }
   };
 
-  const createSection = () => {
+  // Update createSection function
+  const createSection = async () => {
     if (!newSectionName || !selectedNotebookId) return;
     
-    const newSection: Section = {
-      id: Date.now().toString(),
-      name: newSectionName,
-      expanded: false,
-      pages: []
-    };
-    
-    setNotebooks(notebooks.map(notebook => 
-      notebook.id === selectedNotebookId 
-        ? { ...notebook, sections: [...notebook.sections, newSection] } 
-        : notebook
-    ));
-    
-    setShowCreateSectionModal(false);
-    setNewSectionName('');
+    try {
+      const newSection = await noteService.createSection(selectedNotebookId, newSectionName);
+      setNotebooks(notebooks.map(notebook => 
+        notebook.id === selectedNotebookId 
+          ? { ...notebook, sections: [...notebook.sections, newSection] } 
+          : notebook
+      ));
+      setShowCreateSectionModal(false);
+      setNewSectionName('');
+    } catch (error) {
+      console.error('Error creating section:', error);
+      // Handle error
+    }
   };
 
-  const createPage = () => {
+  // Update createPage function
+  const createPage = async () => {
     if (!newPageTitle || !selectedNotebookId || !selectedSectionId) return;
     
-    const newPage: Page = {
-      id: Date.now().toString(),
-      title: newPageTitle,
-      content: ''
-    };
-    
-    setNotebooks(notebooks.map(notebook => 
-      notebook.id === selectedNotebookId 
-        ? { 
-            ...notebook, 
-            sections: notebook.sections.map(section => 
-              section.id === selectedSectionId 
-                ? { ...section, pages: [...section.pages, newPage] } 
-                : section
-            ) 
-          } 
-        : notebook
-    ));
-    
-    setShowCreatePageModal(false);
-    setNewPageTitle('');
+    try {
+      const newPage = await noteService.createPage(selectedSectionId, newPageTitle);
+
+      setNotebooks(notebooks.map(notebook => 
+        notebook.id === selectedNotebookId 
+          ? { 
+              ...notebook, 
+              sections: notebook.sections.map(section => 
+                section.id === selectedSectionId 
+                  ? { ...section, pages: [...section.pages, newPage] } 
+                  : section
+              ) 
+            } 
+          : notebook
+      ));
+      setShowCreatePageModal(false);
+      setNewPageTitle('');
+    } catch (error) {
+      console.error('Error creating page:', error);
+      // Handle error
+    }
   };
 
-  const updateNoteContent = () => {
-    if (!selectedNotebookId || !selectedSectionId || !selectedPageId) return;
+  // Update updateNoteContent function
+  const updateNoteContent = async () => {
+    if (!selectedPageId) return;
     
-    setNotebooks(notebooks.map(notebook => 
-      notebook.id === selectedNotebookId 
-        ? { 
-            ...notebook, 
-            sections: notebook.sections.map(section => 
-              section.id === selectedSectionId 
-                ? { 
-                    ...section, 
-                    pages: section.pages.map(page => 
-                      page.id === selectedPageId 
-                        ? { ...page, content: activeNoteContent, title: activeNoteTitle } 
-                        : page
-                    ) 
-                  } 
-                : section
-            ) 
-          } 
-        : notebook
-    ));
+    try {
+      const updatedPage = await noteService.updatePage(selectedPageId, activeNoteTitle, activeNoteContent);
+      setNotebooks(notebooks.map(notebook => 
+        notebook.id === selectedNotebookId 
+          ? { 
+              ...notebook, 
+              sections: notebook.sections.map(section => 
+                section.id === selectedSectionId 
+                  ? { 
+                      ...section, 
+                      pages: section.pages.map(page => 
+                        page.id === selectedPageId 
+                          ? { ...page, content: updatedPage.content, title: updatedPage.title } 
+                          : page
+                      ) 
+                    } 
+                  : section
+              ) 
+            } 
+          : notebook
+      ));
+    } catch (error) {
+      console.error('Error updating page:', error);
+      throw error; // Propagate error to handle in the editor
+    }
   };
 
   const openCreateSectionModal = (notebookId: string) => {

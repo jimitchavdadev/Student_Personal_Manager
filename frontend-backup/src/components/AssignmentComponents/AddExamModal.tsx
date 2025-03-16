@@ -4,14 +4,14 @@ import { Exam } from '../../types/assignmentTypes';
 interface AddExamModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (exam: Omit<Exam, 'id' | 'resources'> & { resources: string }) => void;
+  onSubmit: (exam: Omit<Exam, 'id'>) => void;
 }
 
 const AddExamModal: React.FC<AddExamModalProps> = ({ isOpen, onClose, onSubmit }) => {
   const [newExam, setNewExam] = useState({
-    subject: '',
-    date: '',
-    toStudy: '',
+    subject_name: '',
+    exam_date: '',
+    what_to_study: '',
     resources: '',
   });
 
@@ -24,12 +24,24 @@ const AddExamModal: React.FC<AddExamModalProps> = ({ isOpen, onClose, onSubmit }
   };
 
   const handleSubmit = () => {
-    onSubmit(newExam);
+    // Split resources string into array by new lines
+    const resourcesArray = newExam.resources
+      .split('\n')
+      .map(resource => resource.trim())
+      .filter(resource => resource.length > 0);
+
+    onSubmit({
+      subject_name: newExam.subject_name,
+      exam_date: newExam.exam_date,
+      what_to_study: newExam.what_to_study,
+      resources: resourcesArray
+    });
+
     onClose();
     setNewExam({
-      subject: '',
-      date: '',
-      toStudy: '',
+      subject_name: '',
+      exam_date: '',
+      what_to_study: '',
       resources: '',
     });
   };
@@ -47,9 +59,9 @@ const AddExamModal: React.FC<AddExamModalProps> = ({ isOpen, onClose, onSubmit }
             </label>
             <input
               type="text"
-              name="subject"
+              name="subject_name"  // Changed from "subject"
               id="subject"
-              value={newExam.subject}
+              value={newExam.subject_name}
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
@@ -60,9 +72,9 @@ const AddExamModal: React.FC<AddExamModalProps> = ({ isOpen, onClose, onSubmit }
             </label>
             <input
               type="date"
-              name="date"
+              name="exam_date"  // Changed from "date"
               id="date"
-              value={newExam.date}
+              value={newExam.exam_date}
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />
@@ -72,9 +84,9 @@ const AddExamModal: React.FC<AddExamModalProps> = ({ isOpen, onClose, onSubmit }
               What to Study
             </label>
             <textarea
-              name="toStudy"
+              name="what_to_study"  // Changed from "toStudy"
               id="toStudy"
-              value={newExam.toStudy}
+              value={newExam.what_to_study}
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600 dark:text-white"
             />

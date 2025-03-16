@@ -11,6 +11,7 @@ interface HeaderProps {
   user: User;
 }
 
+
 const Header: React.FC<HeaderProps> = ({ toggleSidebar, theme, toggleTheme, user }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [showProfile, setShowProfile] = useState(false);

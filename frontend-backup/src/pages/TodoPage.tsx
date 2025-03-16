@@ -1,10 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Plus, ChevronDown, ChevronUp } from 'lucide-react';
 import TaskItem from '../components/ToDoComponents/TaskItem';
 import AddTaskModal from '../components/ToDoComponents/AddTaskModal';
 import { Substep, Task, TaskWithSubsteps } from '../types/todoTypes';
+import { apiClient } from '../services/apiClient';
+import { useAuth } from '../contexts/AuthContext';
 
 const TodoPage: React.FC = () => {
+  const { user } = useAuth();
   const [tasks, setTasks] = useState<TaskWithSubsteps[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newTask, setNewTask] = useState<Omit<Task, 'id' | 'created_at' | 'user_id'>>({
@@ -20,58 +23,142 @@ const TodoPage: React.FC = () => {
   const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null);
   const [activeTaskOptions, setActiveTaskOptions] = useState<string | null>(null);
 
-  const generateId = () => Math.random().toString(36).substr(2, 9);
-
-  const addTask = () => {
-    if (!newTask.name || !newTask.due_date) return;
-    
-    const taskId = generateId();
-    const newTaskWithSubsteps: TaskWithSubsteps = {
-      ...newTask,
-      id: taskId,
-      created_at: new Date().toISOString(),
-      user_id: 'user-id-placeholder',
-      substeps: tempSubsteps.map(substep => ({
-        ...substep,
-        id: generateId(),
-        task_id: taskId,
-        created_at: new Date().toISOString(),
-        completed: false
-      }))
+  // Add useEffect here, right after state declarations
+  useEffect(() => {
+    const fetchTasks = async () => {
+      if (!user) return;
+      
+      try {
+        const fetchedTasks = await apiClient.get(`/tasks?userId=${user.id}`);
+        setTasks(fetchedTasks.map((task: any) => ({
+          id: task._id,
+          name: task.task_name,
+          type: task.task_type,
+          due_date: task.due_date,
+          description: task.description,
+          completed: task.status === 'completed',
+          created_at: task.createdAt,
+          user_id: task.userId,
+          substeps: task.subtasks.map((sub: any) => ({
+            id: sub._id,
+            text: sub.step,
+            completed: sub.status === 'completed',
+            task_id: task._id,
+            created_at: sub.createdAt
+          }))
+        })));
+      } catch (error) {
+        console.error('Error fetching tasks:', error);
+      }
     };
 
-    setTasks(prevTasks => [...prevTasks, newTaskWithSubsteps]);
+    fetchTasks();
+  }, [user]);
+
+
+  const addTask = async () => {
+    if (!newTask.name || !newTask.due_date || !user) return;
     
-    setShowAddModal(false);
-    setNewTask({
-      name: '',
-      type: 'Study',
-      due_date: '',
-      description: '',
-      completed: false
-    });
-    setTempSubsteps([]);
+    try {
+      const taskData = {
+        userId: user.id,
+        task_name: newTask.name,
+        task_type: newTask.type,
+        due_date: new Date(newTask.due_date).toISOString(),
+        description: newTask.description,
+      };
+  
+      const taskResponse = await apiClient.post('/tasks', taskData);
+      let finalTask = taskResponse;
+  
+      // Create subtasks if any
+      if (tempSubsteps.length > 0) {
+        for (const substep of tempSubsteps) {
+          const subtaskResponse = await apiClient.post(`/tasks/${taskResponse._id}/subtasks`, {
+            step: substep.text,
+            status: 'pending'
+          });
+          finalTask = subtaskResponse.task; // Use the updated task from the subtask response
+        }
+      }
+  
+      setTasks(prevTasks => [...prevTasks, {
+        id: finalTask._id,
+        name: finalTask.task_name,
+        type: finalTask.task_type,
+        due_date: finalTask.due_date,
+        description: finalTask.description,
+        completed: finalTask.status === 'completed',
+        created_at: finalTask.createdAt,
+        user_id: finalTask.userId,
+        substeps: finalTask.subtasks.map((sub: any) => ({
+          id: sub._id,
+          text: sub.step,
+          completed: sub.status === 'completed',
+          task_id: finalTask._id,
+          created_at: finalTask.createdAt
+        }))
+      }]);
+      
+      setShowAddModal(false);
+      setNewTask({
+        name: '',
+        type: 'Study',
+        due_date: '',
+        description: '',
+        completed: false
+      });
+      setTempSubsteps([]);
+    } catch (error) {
+      console.error('Error adding task:', error);
+    }
   };
 
-  const toggleTaskCompletion = (taskId: string) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId ? { ...task, completed: !task.completed } : task
-    ));
+  const toggleTaskCompletion = async (taskId: string) => {
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      if (!task || !user) return;
+
+      const newStatus = task.completed ? 'pending' : 'completed';
+      await apiClient.patch(`/tasks/${taskId}`, {
+        userId: user.id,
+        status: newStatus
+      });
+
+      setTasks(tasks.map(task => 
+        task.id === taskId ? { ...task, completed: !task.completed } : task
+      ));
+    } catch (error) {
+      console.error('Error updating task status:', error);
+    }
   };
 
-  const toggleSubstepCompletion = (taskId: string, substepId: string) => {
-    setTasks(tasks.map(task => 
-      task.id === taskId 
-        ? { 
-            ...task, 
-            substeps: task.substeps.map(substep => 
-              substep.id === substepId 
-                ? { ...substep, completed: !substep.completed } 
-                : substep
-            ) 
-          } 
-        : task
-    ));
+  const toggleSubstepCompletion = async (taskId: string, substepId: string) => {
+    try {
+      const task = tasks.find(t => t.id === taskId);
+      const substep = task?.substeps.find(s => s.id === substepId);
+      if (!task || !substep) return;
+
+      const newStatus = substep.completed ? 'pending' : 'completed';
+      await apiClient.patch(`/tasks/${taskId}/subtasks/${substepId}`, {
+        status: newStatus
+      });
+
+      setTasks(tasks.map(task => 
+        task.id === taskId 
+          ? { 
+              ...task, 
+              substeps: task.substeps.map(substep => 
+                substep.id === substepId 
+                  ? { ...substep, completed: !substep.completed } 
+                  : substep
+              ) 
+            } 
+          : task
+      ));
+    } catch (error) {
+      console.error('Error updating subtask status:', error);
+    }
   };
 
   const addSubstep = () => {
