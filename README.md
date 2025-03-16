@@ -53,7 +53,7 @@ Student Personal Manager is a comprehensive web application designed to help stu
 1. Clone the repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/jimitchavdadev/Student_Personal_Manager.git
 cd Student_Personal_Manager
 ```
 
